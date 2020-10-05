@@ -1,57 +1,34 @@
 const Twit = require('twit')
-const unique = require('unique-random-array')
 const config = require('../config')
-const isReply = require('../helpers/isReply')
 
-const param = config.twitterConfig
-const queryString = unique(param.queryString.split(','))
+const tConfig = config.twitterConfig
+const tParam = config.twitterParams
 
-const bot = new Twit(config.twitterKeys)
-
-const retweet = () => {
-  const query = queryString()
-
-  bot.get(
-    'search/tweets',
-    {
-      q: query,
-      result_type: param.resultType,
-      lang: param.language,
-      filter: 'safe',
-      count: param.searchCount
-    },
-    (err, data, response) => {
-      if (err) {
-        console.lol('ERRORDERP: Cannot Search Tweet!, Description here: ', err)
-      } else {
-        // grab random tweet ID to retweet - desired range for random number is [0..data.statuses.length-1]
-        const rando = Math.floor(Math.random() * data.statuses.length)
-        let retweetId
-
-        if (!isReply(data.statuses[rando])) {
-          retweetId = data.statuses[rando].id_str
-        }
-
-        bot.post(
-          'statuses/retweet/:id',
-          {
-            id: retweetId
-          },
-          (err, response) => {
-            if (err) {
-              console.lol('ERRORDERP: Retweet!')
-            }
-            console.lol(
-              'SUCCESS: RT: ',
-              data.statuses[rando].text,
-              'RANDO ID: ',
-              rando
-            )
-          }
-        )
-      }
-    }
-  )
+const twit = new Twit(tConfig)
+const param = {
+    q: tParam.queryString,
+    lang: tParam.language,
+    result_type: tParam.resultType,
+    count: tParam.searchCount
 }
 
-module.exports = retweet
+module.exports = retweet = () => {
+    twit.get('search/tweets', param, (err, data, response) => {
+        if (err) { console.log('ERROR: Search! ', err) }
+        if (response && data.statuses) {
+            let statusId = data.statuses[0].id_str
+
+            //like
+            twit.post('favorites/create', { id: statusId }, (err, response) => {
+                if (err) { console.log('ERROR: Like! ', err) }
+                if (response) { console.log('SUCCESS: Like! ', data.statuses[0].text) }
+            })
+
+            // retweet
+            twit.post('statuses/retweet/:id', { id: statusId }, (err, response) => {
+                if (err) { console.log('ERROR: Retweet! ', err) }
+                if (response) { console.log('SUCCESS: Retweet!', data.statuses[0].text) }
+            })
+        }
+    });
+}
